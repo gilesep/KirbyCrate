@@ -18,6 +18,7 @@ namespace BrawlCrate.UI
             _exception = e;
 
             InitializeComponent();
+            StartPosition = FormStartPosition.CenterParent;
 
             Text = e.GetType().ToString();
             txtStack.Text = e.Message + ' ' + (e.InnerException?.Message ?? "") + '\n' + e.StackTrace;

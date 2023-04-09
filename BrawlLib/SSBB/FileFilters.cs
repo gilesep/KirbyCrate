@@ -27,7 +27,7 @@ namespace BrawlLib.SSBB
 
         public static string BRES =
             SupportedFilesHandler.GetCompleteFilter("brres", "branm", "brmdl", "brtex", "brplt", "brcha", "brtsa",
-                "brsha", "brvia", "brtpa", "brcla", "brsca");
+                "brsha", "brvia", "brtpa", "brcla", "brsca", "cmp"); // qwe - .cmp Kirby format
 
         public static string MDL0Import =
             SupportedFilesHandler.GetCompleteFilter("mdl0", "pmd", "dae");

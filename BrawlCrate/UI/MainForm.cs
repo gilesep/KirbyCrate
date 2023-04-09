@@ -3,6 +3,8 @@ using BrawlCrate.BrawlManagers.CostumeManager;
 using BrawlCrate.BrawlManagers.SongManager;
 using BrawlCrate.BrawlManagers.StageManager;
 using BrawlCrate.ExternalInterfacing;
+using BrawlCrate.KRTDL;
+using BrawlCrate.KRTDL.Recolour;
 using BrawlCrate.NodeWrappers;
 using BrawlCrate.Properties;
 using BrawlCrate.UI.Model_Previewer.ModelEditControl;
@@ -104,6 +106,8 @@ namespace BrawlCrate.UI
         {
             InitializeComponent();
             Text = Program.AssemblyTitleFull;
+
+            Hook.Instance.ModifyMainFormUI(this);
 
             _autoUpdate = Properties.Settings.Default.UpdateAutomatically;
             _displayPropertyDescription = Properties.Settings.Default.DisplayPropertyDescriptionWhenAvailable;
@@ -1269,7 +1273,11 @@ namespace BrawlCrate.UI
 
         private void closeToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Program.Close();
+            if (Program.Close())
+            {
+                // qwe - Force a refresh of the recolor menu items' enabled state
+                RecolorHelper.Instance.UpdateSelectedNode(resourceTree.SelectedNode);
+            }
         }
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)

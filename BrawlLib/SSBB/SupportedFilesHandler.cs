@@ -33,6 +33,9 @@ namespace BrawlLib.SSBB
             new SupportedFileInfo(true, "NW4R Color Sequence Pack", "brcla"),
             new SupportedFileInfo(true, "NW4R Scene Settings Pack", "brsca"),
 
+            // qwe - Kirby Support (KRTDL)
+            new SupportedFileInfo(true, "KRTDL Resource Pack", "cmp"),
+
             //NW4R Raw
             new SupportedFileInfo(true, "NW4R Model", "mdl0"),
             new SupportedFileInfo(true, "NW4R Texture", "tex0"),

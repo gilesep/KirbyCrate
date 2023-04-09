@@ -973,6 +973,13 @@ namespace BrawlLib.SSBB.ResourceNodes
                         case BRESGroupType.SRT0:
                             new SRT0Node().Initialize(this, hdr, hdr->_size);
                             break;
+                        // qwe - this could be a good place to add your own XBIN node?
+                        //       does not really comply to BRESEntry node though.
+                        //       size can be worked out from header.
+                        //       I'm not sure how to work out the filename.
+                        // case BRESGroupType.External:
+                            // new BRESEntryNode("Main.autoreq").Initialize(this, hdr, 32);
+                           // break;
                         default:
                             new BRESEntryNode().Initialize(this, hdr, hdr->_size);
                             break;

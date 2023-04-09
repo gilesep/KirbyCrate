@@ -1,0 +1,13 @@
+﻿KirbyCrate is a copy of BrawlCrate, but for modding Kirby's Return To DreamLand (wii) instead of SmashBrothersBrawl.
+
+Changes made:
+- Removed prebuild steps from projects, to make it build under VS 2022.
+- Unloaded updater project
+- Added padding round the form and made the background pink.
+- Added a blank default pane with a kirby logo in the top left.
+- Tweaked main form's title and icon from BrawlCrate to KirbyCrate
+- Added a basic fix for the External folder problem.
+
+Possible Futute changes:
+- Up all projects to use the .NET 4.8 runtime.
+- Try to fix the Extenal folder problem via a new XBIN node instead.

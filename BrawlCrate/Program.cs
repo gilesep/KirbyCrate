@@ -14,6 +14,8 @@ using System.Reflection;
 using System.Windows.Forms;
 using BrawlLib.Modeling.Collada;
 using System.Collections.Specialized;
+using System.Linq;
+using BrawlCrate.KRTDL;
 #if !DEBUG
 using System.Configuration;
 #endif
@@ -91,8 +93,47 @@ Full changelog and documentation can be viewed from the help menu.";
         public static readonly bool FirstBoot;
 #endif
 
+        // qwe = temporary working folder to fix External folder problem
+        private static string WorkingFolderRoot = "KRTDL\\Working\\";
+        private static string WorkingFolderTemp = "";
+        private static bool _workingFolderActive = false;
+        public static bool WorkingFolderActive
+        {
+            get { return _workingFolderActive; }
+            set
+            {
+                if (_workingFolderActive != value)
+                {
+                    _workingFolderActive = value;
+                    if (MainForm.Instance != null && Hook.Instance != null && Hook.Instance.kirbyIcon != null)
+                    {
+                        MainForm.Instance.Icon = value ? Hook.Instance.kirbyIconAlt : Hook.Instance.kirbyIcon;
+                    }
+                }
+            }
+        }
+
         static Program()
         {
+            // Set a unique working directory for this session
+            WorkingFolderTemp = WorkingFolderRoot + DateTime.Now.ToString("yyyyMMdd-HHmmss") + "\\";
+            
+            // If we are the only process, let's tidy up the working directory
+            if (Process.GetProcessesByName("BrawlCrate").Length == 1)
+            {
+                try
+                {
+                    Directory.Delete(WorkingFolderRoot, true);
+                }
+                catch 
+                {
+                    // maybe something had it locked
+                }
+            }
+
+            Directory.CreateDirectory(WorkingFolderRoot);
+            Directory.CreateDirectory(WorkingFolderTemp);
+
             Application.EnableVisualStyles();
 
 #if !DEBUG
@@ -173,6 +214,9 @@ Full changelog and documentation can be viewed from the help menu.";
             AssemblyTitleFull = ((AssemblyTitleAttribute) Assembly.GetExecutingAssembly()
                 .GetCustomAttributes(typeof(AssemblyTitleAttribute),
                     false)[0]).Title;
+
+            AssemblyTitleFull = AssemblyTitleFull.Replace("BrawlCrate", "KirbyCrate");
+
             if (BrawlLib.BrawlCrate.PerSessionSettings.ProgramBirthday)
             {
                 AssemblyTitleFull = AssemblyTitleFull.Replace("BrawlCrate", "PartyBrawl");
@@ -621,8 +665,11 @@ Full changelog and documentation can be viewed from the help menu.";
             try
             {
 #endif
+           
             if ((_rootNode = NodeFactory.FromFile(null, _rootPath = path)) != null)
             {
+                Program.WorkingFolderActive = false;    // todo: think about where else to set this to true/false (save, save as, etc)
+                HandleExternalFolder();                 // if an 'External' folder exists extract it, delete it and restore it on save (to make things stable)
                 MainForm.Instance.Reset();
                 MainForm.Instance.RecentFilesHandler.AddFile(path);
                 return true;
@@ -649,6 +696,85 @@ Full changelog and documentation can be viewed from the help menu.";
             Close();
 
             return false;
+        }
+
+        // qwe - deals with Extrnal folder problem by backing it up
+        // to be restored on save snd just removing it for now.
+        static void HandleExternalFolder()
+        {
+            // No external folder => fine
+            var externalFolder = _rootNode.Children.Find(x => x.Name == "External");
+            if (externalFolder == null) return; // no problem
+
+            // Unsupported filetype => fine
+            string path = _rootPath;
+            if (!(path.ToLower().EndsWith(".cmp") || path.ToLower().EndsWith(".brres"))) return;    
+
+            // User wants to continue anyway => fine
+            var answer = MessageBox.Show(
+                "This file contains an 'External' folder, which is likely to break the editor!\n\n" +
+                "Do you want to remove the folder now (and have it re-added when you save the file)?",
+                "External Folder Detected!",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1);
+            if (answer != DialogResult.Yes) return;
+
+            string toolsDir = "KRTDL\\Tools\\";
+            string lzxTool = toolsDir + "lzx.exe";
+            string wszstTool = toolsDir + "wszst.exe";
+
+            // create temp folder to do our work
+            string tempFolderName = Program.WorkingFolderTemp;
+
+            // Define filenames
+            string tempFileU = tempFolderName + "x.brres";                  // uncompressed brres
+            string tempFolderUD = tempFolderName + "x.brres.d\\";           // decompiled brres
+            string tempFolderUDX = tempFolderName + "x.brres.d.x\\";        // external folder/files
+            // string tempFolderUDI = tempFolderName + "x.brres.d.i\\";        // internal folder/files
+            // string tempFileTmpUI = tempFolderName + "x.brres.d.brres";       // uncompressed brres without external folder/files
+            // string tempFileUI = tempFolderName + "xi.brres";                // "
+
+            if (File.Exists(tempFileU)) File.Delete(tempFileU);
+            if (Directory.Exists(tempFolderUD)) Directory.Delete(tempFolderUD, true);
+            if (Directory.Exists(tempFolderUDX)) Directory.Delete(tempFolderUDX, true);
+
+            Debug.WriteLine("Copying to: " + tempFileU);
+            File.Copy(path, tempFileU, true);
+
+            if (_rootNode.Compression == "ExtendedLZ77")
+            {
+                Debug.WriteLine("Decompressing to: " + tempFileU);
+                Process.Start(new ProcessStartInfo(lzxTool, "-d " + tempFileU) { WindowStyle = ProcessWindowStyle.Hidden }).WaitForExit();
+            }
+
+            Debug.WriteLine("Extracting to: " + tempFolderUD);
+            Process.Start(new ProcessStartInfo(wszstTool, "EXTRACT " + tempFileU) { WindowStyle = ProcessWindowStyle.Hidden }).WaitForExit();
+
+            Debug.WriteLine("Removing temporary file: " + tempFileU);
+            File.Delete(tempFileU);
+
+            Debug.WriteLine("Removing all but External folder: ");
+            Directory.GetFiles(tempFolderUD).ToList().ForEach(x => File.Delete(x));
+            Directory.GetDirectories(tempFolderUD).ToList().ForEach(x => { if (!x.EndsWith("External")) Directory.Delete(x, true); });
+
+            Debug.WriteLine("Trimming External files: ");
+            Directory.GetFiles(tempFolderUD + "External\\").ToList().ForEach(x =>
+            {
+                var bytes = File.ReadAllBytes(x);               // read file as bytes
+                var sizeBytes = new byte[4];                    // endianness seems wrong?
+                sizeBytes[3] = bytes[8];
+                sizeBytes[2] = bytes[9];
+                sizeBytes[1] = bytes[10];
+                sizeBytes[0] = bytes[11];
+                var size = BitConverter.ToInt32(sizeBytes, 0);   // get actual size
+                size = (size+31)/32*32;                        // align to 32 bytes
+                var newByes = new byte[size];
+                Array.Copy(bytes, newByes, size);
+                File.WriteAllBytes(x, newByes);
+            });
+
+            // Mark the fact we want to remerge these external files later on!
+            _rootNode.Children.Remove(externalFolder);
+            Program.WorkingFolderActive = true;
         }
 
         public static bool OpenTemplate(string path)
@@ -1061,6 +1187,69 @@ Full changelog and documentation can be viewed from the help menu.";
                     MainForm.Instance.UpdateName();
                     w.Resource.IsDirty = false;
                     MainForm.Instance.resourceTree_SelectionChanged(null, EventArgs.Empty);
+
+                    // qwe - patch in the external files
+                    if (Program.WorkingFolderActive)
+                    {
+                        bool wasCompressed = _rootNode.Compression == "ExtendedLZ77";
+
+                        string toolsDir = "KRTDL\\Tools\\";
+                        string lzxTool = toolsDir + "lzx.exe";
+                        string wszstTool = toolsDir + "wszst.exe";
+
+                        // create temp folder to do our work
+                        string tempFolderName = Program.WorkingFolderTemp;
+
+                        // Define filenames
+                        string tempFileU = tempFolderName + "y.brres";       // uncompressed brres
+                        string tempFolderUD = tempFolderName + "y.brres.d\\";          // decompiled brres
+                        string tempFolderUD2 = tempFolderName + "y2.brres.d\\";          // decompiled brres with external added
+                        string tempFolderUDX = tempFolderName + "x.brres.d\\";          // external folder/files
+                        string tempFileUI = tempFolderName + "y2.brres";                // recompiled (and compressed if required) with external files
+
+                        if (File.Exists(tempFileU)) File.Delete(tempFileU);
+                        if (Directory.Exists(tempFolderUD)) Directory.Delete(tempFolderUD, true);
+                        if (File.Exists(tempFileUI)) File.Delete(tempFileUI);
+
+                        Debug.WriteLine("Copying to: " + tempFileU);
+                        File.Copy(path, tempFileU, true);
+
+                        if (wasCompressed)
+                        {
+                            Debug.WriteLine("Decompressing to: " + tempFileU);
+                            Process.Start(lzxTool, "-d " + tempFileU).WaitForExit();
+                        }
+
+                        Debug.WriteLine("Extracting to: " + tempFolderUD);
+                        Process.Start(wszstTool, "EXTRACT " + tempFileU).WaitForExit();
+
+                        if (Directory.Exists(tempFolderUDX + "External"))
+                        {
+                            Debug.WriteLine("Copying External folder to: " + tempFolderUD);
+                            Directory.CreateDirectory(tempFolderUD + "External");
+                            CopyFilesRecursively(tempFolderUDX + "External", tempFolderUD + "External");
+
+                            Debug.WriteLine("Renaming merged folder to: " + tempFolderUD2);
+                            Directory.Move(tempFolderUD, tempFolderUD2);
+
+                            // todo: resize external files to actual size (32 byte aligned)
+                            // todo: possibly tweak wszst index file so external files are last (currently just assuming it is done by default)
+
+                            File.Delete(tempFileU);
+                            Debug.WriteLine("Creating to: " + tempFileUI);
+                            Process.Start(wszstTool, "CREATE " + tempFolderUD2).WaitForExit();
+
+                            if (wasCompressed)
+                            {
+                                Debug.WriteLine("Compressing to: " + tempFileUI);
+                                Process.Start(lzxTool, "-evb " + tempFileUI).WaitForExit();
+                            }
+
+                            Debug.WriteLine("Publishing to: " + path);
+                            File.Copy(tempFileUI, path, true);
+                        }
+                    }
+
                     return true;
                 }
 #if !DEBUG
@@ -1075,6 +1264,22 @@ Full changelog and documentation can be viewed from the help menu.";
 
             MainForm.Instance.resourceTree_SelectionChanged(null, EventArgs.Empty);
             return false;
+        }
+
+        // qwe - added to copy folder recursively
+        private static void CopyFilesRecursively(string sourcePath, string targetPath)
+        {
+            //Now Create all of the directories
+            foreach (string dirPath in Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories))
+            {
+                Directory.CreateDirectory(dirPath.Replace(sourcePath, targetPath));
+            }
+
+            //Copy all the files & Replaces any files with the same name
+            foreach (string newPath in Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories))
+            {
+                File.Copy(newPath, newPath.Replace(sourcePath, targetPath), true);
+            }
         }
 
         public static bool CanRunGithubApp(bool showMessages, out string path)
