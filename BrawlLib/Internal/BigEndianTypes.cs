@@ -9,7 +9,7 @@ namespace BrawlLib.Internal
     {
         public int _data;
 
-        public static implicit operator int(bint val)
+        public static implicit operator int(bint val)       
         {
             return val._data.Reverse();
         }

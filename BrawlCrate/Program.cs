@@ -93,6 +93,7 @@ Full changelog and documentation can be viewed from the help menu.";
         public static readonly bool FirstBoot;
 #endif
 
+        /* now using XBIN nodes instead
         // qwe = temporary working folder to fix External folder problem
         private static string WorkingFolderRoot = "KRTDL\\Working\\";
         private static string WorkingFolderTemp = "";
@@ -112,9 +113,11 @@ Full changelog and documentation can be viewed from the help menu.";
                 }
             }
         }
+        */
 
         static Program()
         {
+            /* now using XBIN nodes instead
             // Set a unique working directory for this session
             WorkingFolderTemp = WorkingFolderRoot + DateTime.Now.ToString("yyyyMMdd-HHmmss") + "\\";
             
@@ -133,6 +136,7 @@ Full changelog and documentation can be viewed from the help menu.";
 
             Directory.CreateDirectory(WorkingFolderRoot);
             Directory.CreateDirectory(WorkingFolderTemp);
+            */
 
             Application.EnableVisualStyles();
 
@@ -668,8 +672,8 @@ Full changelog and documentation can be viewed from the help menu.";
            
             if ((_rootNode = NodeFactory.FromFile(null, _rootPath = path)) != null)
             {
-                Program.WorkingFolderActive = false;    // todo: think about where else to set this to true/false (save, save as, etc)
-                HandleExternalFolder();                 // if an 'External' folder exists extract it, delete it and restore it on save (to make things stable)
+                //x Program.WorkingFolderActive = false;    // todo: think about where else to set this to true/false (save, save as, etc)
+                //x HandleExternalFolder();                 // if an 'External' folder exists extract it, delete it and restore it on save (to make things stable)
                 MainForm.Instance.Reset();
                 MainForm.Instance.RecentFilesHandler.AddFile(path);
                 return true;
@@ -698,6 +702,8 @@ Full changelog and documentation can be viewed from the help menu.";
             return false;
         }
 
+/* Don't need this anymore, hopefully have a better way to do it,
+ * now with XBIN nodes, but leaving commented out for a bit, just in case
         // qwe - deals with Extrnal folder problem by backing it up
         // to be restored on save snd just removing it for now.
         static void HandleExternalFolder()
@@ -708,7 +714,9 @@ Full changelog and documentation can be viewed from the help menu.";
 
             // Unsupported filetype => fine
             string path = _rootPath;
-            if (!(path.ToLower().EndsWith(".cmp") || path.ToLower().EndsWith(".brres"))) return;    
+            if (!(path.ToLower().EndsWith(".cmp") || path.ToLower().EndsWith(".brres"))) return;
+
+            if ("TEMP SKIP CODE".Length >= 0) return; // early out
 
             // User wants to continue anyway => fine
             var answer = MessageBox.Show(
@@ -716,6 +724,7 @@ Full changelog and documentation can be viewed from the help menu.";
                 "Do you want to remove the folder now (and have it re-added when you save the file)?",
                 "External Folder Detected!",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button1);
+
             if (answer != DialogResult.Yes) return;
 
             string toolsDir = "KRTDL\\Tools\\";
@@ -775,7 +784,7 @@ Full changelog and documentation can be viewed from the help menu.";
             // Mark the fact we want to remerge these external files later on!
             _rootNode.Children.Remove(externalFolder);
             Program.WorkingFolderActive = true;
-        }
+        }*/
 
         public static bool OpenTemplate(string path)
         {
@@ -1189,6 +1198,7 @@ Full changelog and documentation can be viewed from the help menu.";
                     MainForm.Instance.resourceTree_SelectionChanged(null, EventArgs.Empty);
 
                     // qwe - patch in the external files
+                    /* Now using XBIN Nodes instead
                     if (Program.WorkingFolderActive)
                     {
                         bool wasCompressed = _rootNode.Compression == "ExtendedLZ77";
@@ -1249,6 +1259,7 @@ Full changelog and documentation can be viewed from the help menu.";
                             File.Copy(tempFileUI, path, true);
                         }
                     }
+                    */
 
                     return true;
                 }
@@ -1266,6 +1277,7 @@ Full changelog and documentation can be viewed from the help menu.";
             return false;
         }
 
+        /* now using XBIN nodes instead
         // qwe - added to copy folder recursively
         private static void CopyFilesRecursively(string sourcePath, string targetPath)
         {
@@ -1281,6 +1293,7 @@ Full changelog and documentation can be viewed from the help menu.";
                 File.Copy(newPath, newPath.Replace(sourcePath, targetPath), true);
             }
         }
+        */
 
         public static bool CanRunGithubApp(bool showMessages, out string path)
         {

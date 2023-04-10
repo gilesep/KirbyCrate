@@ -235,6 +235,9 @@
 
         // SSEEX
         SELB,
-        SELCTeam
+        SELCTeam,
+
+        // KRTDL (External Resources)
+        XBIN,
     }
 }

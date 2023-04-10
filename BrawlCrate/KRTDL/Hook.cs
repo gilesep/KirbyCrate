@@ -29,7 +29,8 @@ namespace BrawlCrate.KRTDL
 
             // kirby specific changes
             mainForm.BackColor = Color.Pink;
-            mainForm.BackColor = Color.FromArgb(0xFF, 0xFF, 0xC0, 0xE0);
+            //mainForm.BackColor = Color.FromArgb(0xFF, 0xFF, 0xC0, 0xE0);
+            mainForm.BackColor = Color.FromArgb(0xFF, 0xFF, 0xE0, 0xF0);
             menuStrip1.BackColor = mainForm.BackColor;
             kirbyIcon = Icon.ExtractAssociatedIcon("KRTDL\\Resources\\kirby-star.ico");
             kirbyIconAlt = Icon.ExtractAssociatedIcon("KRTDL\\Resources\\kirby-blue.ico");

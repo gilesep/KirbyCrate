@@ -292,6 +292,11 @@ namespace BrawlLib.SSBB.ResourceNodes
                 type = BRESGroupNode.BRESGroupType.SCN0;
                 groupName = "AnmScn(NW4R)";
             }
+            else if (typeof(T) == typeof(XBINNode))
+            {
+                type = BRESGroupNode.BRESGroupType.XBIN;
+                groupName = "External";
+            }
             else if (typeof(T) == typeof(RASDNode))
             {
                 type = BRESGroupNode.BRESGroupType.External;
@@ -817,6 +822,8 @@ namespace BrawlLib.SSBB.ResourceNodes
                         return new Type[] {typeof(SCN0Node)};
                     case BRESGroupType.PAT0:
                         return new Type[] {typeof(PAT0Node)};
+                    case BRESGroupType.XBIN:
+                        return new Type[] { typeof(XBINNode) };
                     default:
                         return new Type[] { };
                 }
@@ -865,6 +872,7 @@ namespace BrawlLib.SSBB.ResourceNodes
             VIS0,
             SCN0,
             PAT0,
+            XBIN,
             External,
             None
         }
@@ -927,6 +935,10 @@ namespace BrawlLib.SSBB.ResourceNodes
             {
                 Type = BRESGroupType.PAT0;
             }
+            else if (_name == "External" || (Children.Count > 0 && Children[0] is XBINNode))
+            {
+                Type = BRESGroupType.XBIN;
+            }
             else if (_name == "External" || (Children.Count > 0 && Children[0] is RASDNode))
             {
                 Type = BRESGroupType.External;
@@ -939,7 +951,43 @@ namespace BrawlLib.SSBB.ResourceNodes
             for (int i = 0; i < group->_numEntries; i++)
             {
                 BRESCommonHeader* hdr = (BRESCommonHeader*) group->First[i].DataAddress;
-                if (NodeFactory.FromAddress(this, hdr, hdr->_size) == null)
+
+                // Todo: for XBIN, allow size to be wrng and fix up size and name
+                // on Initialise override. Put this code back how it was
+                // But can the name be set on initialize? We need the group for that.
+
+                /*
+                if (hdr->_tag.Get() == "XBIN")
+                {
+                    XBIN* xbin = (XBIN*)group->First[i].DataAddress;
+                    hdr->_size = xbin->PaddedSize;  // This isn't right, but we can put it back to 12340200 later
+                    var rn = NodeFactory.FromAddress(this, hdr, hdr->_size);
+                    (rn as XBINNode).Name = "Main.autoreq"; // todo, figure out how to get the real name!
+                }
+                else*/
+
+                // XBIN tags store their size in the version slot
+                int size = (hdr->_tag == XBIN.Tag) ? hdr->_version : hdr->_size;
+
+                // This creates the node
+                var rs = NodeFactory.FromAddress(this, hdr, size);
+
+                // This patches up the string
+                if (rs is XBINNode xbinNode)
+                {
+                    // some jiggery-pokery to find the node's name
+                    int index = Children.Count - 1;             // Assuming this is called as the tree is built (count increases)
+                    var item = group->First[index];             // This is the group of interest
+                    var stringOffset = item._stringOffset;  
+                    var groupEndAddress = group->EndAddress;
+                    var stringAddress = groupEndAddress - group->_totalSize + item._stringOffset;
+                    var stringData = stringAddress.GetUTF8String();
+                    xbinNode.Name = stringAddress.GetUTF8String(); // todo: this needs figuring out
+                }
+
+                // If failed to create the node, create a new one based on the folder
+                if (rs == null)
+                //x if (NodeFactory.FromAddress(this, hdr, hdr->_size) == null)
                 {
                     switch (Type)
                     {
@@ -973,13 +1021,9 @@ namespace BrawlLib.SSBB.ResourceNodes
                         case BRESGroupType.SRT0:
                             new SRT0Node().Initialize(this, hdr, hdr->_size);
                             break;
-                        // qwe - this could be a good place to add your own XBIN node?
-                        //       does not really comply to BRESEntry node though.
-                        //       size can be worked out from header.
-                        //       I'm not sure how to work out the filename.
-                        // case BRESGroupType.External:
-                            // new BRESEntryNode("Main.autoreq").Initialize(this, hdr, 32);
-                           // break;
+                        case BRESGroupType.XBIN:
+                            new XBINNode().Initialize(this, hdr, hdr->_size);
+                            break;
                         default:
                             new BRESEntryNode().Initialize(this, hdr, hdr->_size);
                             break;
@@ -1115,7 +1159,16 @@ namespace BrawlLib.SSBB.ResourceNodes
         {
             _userEntries = new UserDataCollection();
             _version = CommonHeader->_version;
-            SetSizeInternal(CommonHeader->_size);
+
+            // qwe - stupid fix for external XBIN
+            if (CommonHeader->_tag == XBIN.Tag && CommonHeader->_size == 0x12340200)
+            {
+                int size = CommonHeader->_version; //qwe??? size = ((size + 31) / 32) * 32;
+                SetSizeInternal(size);
+            }
+    
+            else
+                SetSizeInternal(CommonHeader->_size);
             if (!string.IsNullOrEmpty(Tag) && !WorkingUncompressed.Tag.Equals(Tag))
             {
                 SignalPropertyChange();

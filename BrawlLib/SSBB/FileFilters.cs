@@ -41,6 +41,9 @@ namespace BrawlLib.SSBB
         public static string PLT0 =
             SupportedFilesHandler.GetCompleteFilter("plt0");
 
+        public static string XBIN =
+            SupportedFilesHandler.GetCompleteFilter("xbin");
+
         public static string CHR0Import =
             SupportedFilesHandler.GetCompleteFilter("chr0", "anim", "txt", "json");
 
